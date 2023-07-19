@@ -32,9 +32,10 @@ class MainWindow(QtWidgets.QMainWindow):
         # Hide stuff
         self.progressBar.setVisible(False)
         self.stopDownloadButton.setVisible(False)
-        self.titleLabel.setVisible(False)
-        self.viewsLabel.setVisible(False)
-        self.playlistIdLabel.setVisible(False)
+        self.label1.setVisible(False)
+        self.label2.setVisible(False)
+        self.label3.setVisible(False)
+        self.label4.setVisible(False)
 
         # Buttons and Signals
         self.processButton.clicked.connect(self.process_link)
@@ -50,7 +51,7 @@ class MainWindow(QtWidgets.QMainWindow):
                 for col, col_item in enumerate(items):
                     widget_item = QtWidgets.QTableWidgetItem(str(col_item))
                     self.tableWidget.setItem(row, col, widget_item)
-                    self.tableWidget.horizontalHeader()\
+                    self.tableWidget.horizontalHeader() \
                         .setSectionResizeMode(col, QtWidgets.QHeaderView.ResizeMode.ResizeToContents)
 
     def process_link(self):
@@ -68,14 +69,14 @@ class MainWindow(QtWidgets.QMainWindow):
             # playlist
             info: dict = get_playlist_info(link)
             if info:
-                self.titleLabel.setVisible(True)
-                self.titleLabel.setText(f"Playlist Title: {info.get('playlist_title')}")
+                self.label1.setVisible(True)
+                self.label1.setText(f"Playlist Title: {info.get('playlist_title')}")
 
-                self.viewsLabel.setVisible(True)
-                self.viewsLabel.setText(f"Views: {info.get('views'):,}")
+                self.label2.setVisible(True)
+                self.label2.setText(f"Views: {info.get('views'):,}")
 
-                self.playlistIdLabel.setVisible(True)
-                self.playlistIdLabel.setText(f"Playlist ID: {info.get('playlist_id')}")
+                self.label3.setVisible(True)
+                self.label3.setText(f"Playlist ID: {info.get('playlist_id')}")
             else:
                 showMsgBox(
                     "Invalid URL",
@@ -84,24 +85,47 @@ class MainWindow(QtWidgets.QMainWindow):
                     QtWidgets.QMessageBox.Icon.Critical
                 )
                 return None
-
-            table_data_list = []
+            total_size: list = []
+            table_data_list: list = []
             for video_url in get_video_urls_from_playlist(link):
                 status, video_dict = get_video_info(video_url)
                 if status:
-                    tuple_data = (video_dict.get("title"), video_dict.get("author"), video_dict.get("duration_sec"))
+                    vid_stream = video_dict.get("video_stream")
+                    audio_stream = video_dict.get("audio_stream")
+
+                    tuple_data = (
+                        video_dict.get("title"),
+                        video_dict.get("author"),
+                        vid_stream.resolution,
+                        video_dict.get("duration_sec"),
+                    )
                     table_data_list.append(tuple_data)
 
-            print(table_data_list)
-            self.display_data_in_table(table_data_list, ["Title", "Channel", "Length"])
+                    total_size.append(vid_stream.filesize_mb + audio_stream.filesize_mb)
 
+            self.label4.setVisible(True)
+            self.label4.setText(f"Total Size: {sum(total_size):.2f} MB")
+            self.display_data_in_table(table_data_list, ["Title", "Channel", "Resolution", "Length"])
 
         else:
             # video
             print("video")
             status, video_dict = get_video_info(link)
             if status:
-                pass
+                vid_stream = video_dict.get("video_stream")
+                audio_stream = video_dict.get("audio_stream")
+
+                data = [(
+                    video_dict.get("title"),
+                    video_dict.get("author"),
+                    vid_stream.resolution,
+                    video_dict.get("duration_sec"))]
+                self.display_data_in_table(data, ["Title", "Channel", "Resolution", "Length"])
+
+                self.label1.setVisible(True)
+                self.label1.setText(f"Size: {vid_stream.filesize_mb + audio_stream.filesize_mb} MB")
+
+
             else:
                 if video_dict:
                     showMsgBox(

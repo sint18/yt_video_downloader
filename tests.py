@@ -4,6 +4,7 @@ url = "https://www.youtube.com/playlist?list=PLCC34OHNcOtpmCA8s_dpPMvQLyHbvxocY"
 vid_url = "https://www.youtube.com/watch?v=BaW_jenozKc"
 invalid_url = "https://www.python.org/"
 
+
 class TestGetVideoUrlsFromPlaylist:
     def test_get_items_from_playlist(self):
         assert youtube_func.get_video_urls_from_playlist("") is None
@@ -35,4 +36,3 @@ class TestGetVideoInfo:
 
     def test_invalid_video_url(self):
         assert youtube_func.get_video_info(invalid_url)[0] == 0
-

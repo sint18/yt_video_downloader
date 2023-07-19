@@ -8,14 +8,19 @@ def get_playlist_info(playlist_link: str) -> dict:
 
     try:
         playlist = Playlist(playlist_link)
+
+        info_dict = {
+            "playlist_title": playlist.title,
+            "playlist_id": playlist.playlist_id,
+            "views": playlist.views
+        }
     except exceptions.PytubeError as err:
         print(err)
         return {}
+    except KeyError:
+        return {}
 
-    return {
-        "playlist_title": playlist.title,
-        "views": playlist.views
-    }
+    return info_dict
 
 
 def get_video_urls_from_playlist(playlist_link: str):
@@ -29,8 +34,8 @@ def get_video_urls_from_playlist(playlist_link: str):
     except exceptions.PytubeError as err:
         print(err)
         return None
-
-    return playlist.url_generator()
+    else:
+        return playlist.url_generator()
 
 
 # TODO: Provide resolution options
@@ -40,23 +45,33 @@ def get_video_info(video_link: str) -> tuple:
 
     try:
         yt = YouTube(video_link)
-    except exceptions.VideoPrivate:
-        return 0, {"error": f"Video with link: {video_link} is private"}
-    except exceptions.AgeRestrictedError:
-        return 0, {"error": f"Age restricted for video: {video_link}"}
-    except exceptions.VideoUnavailable:
-        return 0, {"error": f"Video unavailable: {video_link}"}
-    else:
-        title: str = yt.title
-        author: str = yt.author
-        duration_sec: int = yt.length  # Converting to minutes
 
+        # TODO: Get all video and audio streams and filter later
         # Get the best quality video
         video: Stream = yt.streams.filter(adaptive=True, type="video").asc().first()
 
         # Get the best quality audio
         audio: Stream = yt.streams.filter(adaptive=True, type="audio").asc().first()
-        return 1, {"title": title, "author": author}
+
+        result_dict = {
+            "title": yt.title,  # Title of Video
+            "author": yt.author,  # Creator of video
+            "duration_sec": yt.length,  # Length of video in seconds
+            "video_stream": video,
+            "audio_stream": audio
+        }
+
+    except exceptions.VideoPrivate:
+        return 0, {"error": f"Video with link: {video_link} is private", "err_title": "Private Video"}
+    except exceptions.AgeRestrictedError:
+        return 0, {"error": f"Age restricted for video: {video_link}", "err_title": "Age Restricted"}
+    except exceptions.VideoUnavailable:
+        return 0, {"error": f"Video unavailable: {video_link}", "err_title": "Video Unavailable"}
+    except exceptions.RegexMatchError:
+        return 0, {"error": f"URL is invalid or not supported", "err_title": "Invalid URL"}
+    else:
+
+        return 1, result_dict
 
 
 def download(stream: Stream):

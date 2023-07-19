@@ -43,7 +43,7 @@
        </rect>
       </property>
       <property name="text">
-       <string>Process</string>
+       <string>Get</string>
       </property>
      </widget>
      <widget class="QWidget" name="layoutWidget">
@@ -85,7 +85,7 @@
       <property name="geometry">
        <rect>
         <x>660</x>
-        <y>370</y>
+        <y>390</y>
         <width>111</width>
         <height>30</height>
        </rect>
@@ -98,7 +98,7 @@
       <property name="geometry">
        <rect>
         <x>20</x>
-        <y>430</y>
+        <y>440</y>
         <width>751</width>
         <height>23</height>
        </rect>
@@ -111,7 +111,7 @@
       <property name="geometry">
        <rect>
         <x>20</x>
-        <y>171</y>
+        <y>191</y>
         <width>751</width>
         <height>191</height>
        </rect>
@@ -135,6 +135,45 @@
       <property name="text">
        <string>Youtube Downloader</string>
       </property>
+     </widget>
+     <widget class="QPushButton" name="stopDownloadButton">
+      <property name="geometry">
+       <rect>
+        <x>610</x>
+        <y>480</y>
+        <width>161</width>
+        <height>29</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>Stop Downloading</string>
+      </property>
+     </widget>
+     <widget class="QWidget" name="">
+      <property name="geometry">
+       <rect>
+        <x>20</x>
+        <y>130</y>
+        <width>631</width>
+        <height>50</height>
+       </rect>
+      </property>
+      <layout class="QVBoxLayout" name="verticalLayout_2">
+       <item>
+        <widget class="QLabel" name="titleLabel">
+         <property name="text">
+          <string>Playlist Title: </string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QLabel" name="viewsLabel">
+         <property name="text">
+          <string>Views: </string>
+         </property>
+        </widget>
+       </item>
+      </layout>
      </widget>
     </widget>
     <widget class="QWidget" name="tab_2">

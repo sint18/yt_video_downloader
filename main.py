@@ -1,9 +1,11 @@
 import os
 from youtube_func import get_video_urls_from_playlist, get_playlist_info, get_video_info
 
-from PyQt5 import QtWidgets
+from PyQt5 import QtWidgets, QtCore
+from PyQt5.QtGui import QMovie
 from PyQt5.QtWidgets import QApplication
 from PyQt5.uic import loadUi
+from PyQt5.QtCore import QObject, QThread, pyqtSignal
 
 
 def showMsgBox(text: str, informative_text: str, window_title: str, icon):
@@ -36,10 +38,30 @@ class MainWindow(QtWidgets.QMainWindow):
         self.label2.setVisible(False)
         self.label3.setVisible(False)
         self.label4.setVisible(False)
+        self.downloadStatusLabel.setVisible(False)
 
         # Buttons and Signals
         self.processButton.clicked.connect(self.process_link)
         self.downloadButton.clicked.connect(self.download)
+        self.stopDownloadButton.clicked.connect(self.stop_loading_animation)
+
+        # Loader
+        self.movie = QMovie("assets/loader.gif")
+
+        # Empty List
+        self.video_list: list = []
+
+    def start_loading_animation(self):
+        size: int = 70  # Size of loader (Change this to alter the loader size)
+        self.loaderLabel.setScaledContents(True)
+        self.loaderLabel.setMinimumSize(QtCore.QSize(size, size))
+        self.loaderLabel.setMaximumSize(QtCore.QSize(size, size))
+        self.loaderLabel.setMovie(self.movie)
+        self.movie.start()
+
+    def stop_loading_animation(self):
+        self.movie.stop()
+        self.loaderLabel.clear()
 
     def display_data_in_table(self, data: list[tuple], columns: list):
         self.tableWidget.setRowCount(len(data))
@@ -106,6 +128,7 @@ class MainWindow(QtWidgets.QMainWindow):
             self.label4.setVisible(True)
             self.label4.setText(f"Total Size: {sum(total_size):.2f} MB")
             self.display_data_in_table(table_data_list, ["Title", "Channel", "Resolution", "Length"])
+            self.loaderLabel.setVisible(False)  # Hide loader
 
         else:
             # video
@@ -123,8 +146,7 @@ class MainWindow(QtWidgets.QMainWindow):
                 self.display_data_in_table(data, ["Title", "Channel", "Resolution", "Length"])
 
                 self.label1.setVisible(True)
-                self.label1.setText(f"Size: {vid_stream.filesize_mb + audio_stream.filesize_mb} MB")
-
+                self.label1.setText(f"Size: {vid_stream.filesize_mb + audio_stream.filesize_mb:.2f} MB")
 
             else:
                 if video_dict:
@@ -136,7 +158,16 @@ class MainWindow(QtWidgets.QMainWindow):
                     )
 
     def download(self):
+        self.downloadStatusLabel.setVisible(True)
+        self.downloadStatusLabel.setText("Downloading...")
+        # self.start_loading_animation()
+
+    def update_progress(self):
+        self.progressBar.setVisible(True)
+
+    def cancel_download(self):
         pass
+        # self.stop_loading_animation()
 
 
 def create_window():

@@ -1,5 +1,6 @@
 from pytube import Playlist, YouTube, Stream
 from pytube import exceptions
+import os
 
 
 def get_playlist_info(playlist_link: str) -> dict:
@@ -77,3 +78,4 @@ def get_video_info(video_link: str) -> tuple:
 def download(stream: Stream):
     pass
 # TODO: post-process streams with FFmpeg
+

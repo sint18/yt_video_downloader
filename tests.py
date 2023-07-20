@@ -28,6 +28,9 @@ class TestGetPlaylistInfo:
 
 
 class TestGetVideoInfo:
+    def test_is_tuple(self):
+        assert isinstance(youtube_func.get_video_info(vid_url), tuple) is True
+
     def test_empty_video_info(self):
         assert youtube_func.get_video_info("") == (0, {})
 

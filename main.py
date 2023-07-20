@@ -8,6 +8,31 @@ from PyQt5.uic import loadUi
 from PyQt5.QtCore import QObject, QThread, pyqtSignal
 
 
+class Worker(QObject):
+    finished = pyqtSignal()
+    playlist_info_signal = pyqtSignal(dict)
+    video_info_signal = pyqtSignal(list)
+
+    def __init__(self, url):
+        super().__init__()
+        self.url = url
+
+    def run(self):
+        playlist_info_dict: dict = get_playlist_info(self.url)
+
+        self.playlist_info_signal.emit(playlist_info_dict)
+
+        video_list = []
+        for video_url in get_video_urls_from_playlist(self.url):
+            status, video_dict = get_video_info(video_url)
+
+            if status:
+                video_list.append(video_dict)
+
+        self.video_info_signal.emit(video_list)
+        self.finished.emit()
+
+
 def showMsgBox(text: str, informative_text: str, window_title: str, icon):
     """
     Displays a message box with given messages
@@ -29,6 +54,8 @@ def showMsgBox(text: str, informative_text: str, window_title: str, icon):
 class MainWindow(QtWidgets.QMainWindow):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.worker = None
+        self.thread = None
         loadUi("ui/mainScreen.ui", self)
 
         # Hide stuff
@@ -76,6 +103,61 @@ class MainWindow(QtWidgets.QMainWindow):
                     self.tableWidget.horizontalHeader() \
                         .setSectionResizeMode(col, QtWidgets.QHeaderView.ResizeMode.ResizeToContents)
 
+    def run_fetch_playlist_task(self, url: str):
+        self.thread = QThread()
+        self.worker = Worker(url)
+        self.worker.moveToThread(self.thread)
+        self.thread.started.connect(self.worker.run)
+        self.worker.finished.connect(self.thread.quit)
+        self.worker.finished.connect(self.worker.deleteLater)
+        self.thread.finished.connect(self.thread.deleteLater)
+
+        # Get Emitted signal
+        self.worker.playlist_info_signal.connect(self.display_playlist_info)
+        self.worker.video_info_signal.connect(self.display_video_info)
+
+        self.thread.start()
+
+    def display_video_info(self, video_list: list):
+        total_size: list = []
+        table_data_list: list = []
+        for video_dict in video_list:
+            vid_stream = video_dict.get("video_stream")
+            audio_stream = video_dict.get("audio_stream")
+
+            tuple_data = (
+                video_dict.get("title"),
+                video_dict.get("author"),
+                vid_stream.resolution,
+                video_dict.get("duration_sec"),
+            )
+            table_data_list.append(tuple_data)
+
+            total_size.append(vid_stream.filesize_mb + audio_stream.filesize_mb)
+
+        self.label4.setVisible(True)
+        self.label4.setText(f"Total Size: {sum(total_size):.2f} MB")
+        self.display_data_in_table(table_data_list, ["Title", "Channel", "Resolution", "Length"])
+
+    def display_playlist_info(self, playlist_info: dict):
+        if playlist_info:
+            self.label1.setVisible(True)
+            self.label1.setText(f"Playlist Title: {playlist_info.get('playlist_title')}")
+
+            self.label2.setVisible(True)
+            self.label2.setText(f"Views: {playlist_info.get('views'):,}")
+
+            self.label3.setVisible(True)
+            self.label3.setText(f"Playlist ID: {playlist_info.get('playlist_id')}")
+        else:
+            showMsgBox(
+                "Invalid URL",
+                "URL is not supported or is invalid",
+                "Error",
+                QtWidgets.QMessageBox.Icon.Critical
+            )
+            return None
+
     def process_link(self):
         link: str = self.linkLineEdit.text().strip()
 
@@ -89,46 +171,32 @@ class MainWindow(QtWidgets.QMainWindow):
 
         if "playlist" in link:
             # playlist
-            info: dict = get_playlist_info(link)
-            if info:
-                self.label1.setVisible(True)
-                self.label1.setText(f"Playlist Title: {info.get('playlist_title')}")
 
-                self.label2.setVisible(True)
-                self.label2.setText(f"Views: {info.get('views'):,}")
+            self.run_fetch_playlist_task(link)
 
-                self.label3.setVisible(True)
-                self.label3.setText(f"Playlist ID: {info.get('playlist_id')}")
-            else:
-                showMsgBox(
-                    "Invalid URL",
-                    "URL is not supported or is invalid",
-                    "Error",
-                    QtWidgets.QMessageBox.Icon.Critical
-                )
-                return None
-            total_size: list = []
-            table_data_list: list = []
-            for video_url in get_video_urls_from_playlist(link):
-                status, video_dict = get_video_info(video_url)
-                if status:
-                    vid_stream = video_dict.get("video_stream")
-                    audio_stream = video_dict.get("audio_stream")
-
-                    tuple_data = (
-                        video_dict.get("title"),
-                        video_dict.get("author"),
-                        vid_stream.resolution,
-                        video_dict.get("duration_sec"),
-                    )
-                    table_data_list.append(tuple_data)
-
-                    total_size.append(vid_stream.filesize_mb + audio_stream.filesize_mb)
-
-            self.label4.setVisible(True)
-            self.label4.setText(f"Total Size: {sum(total_size):.2f} MB")
-            self.display_data_in_table(table_data_list, ["Title", "Channel", "Resolution", "Length"])
-            self.loaderLabel.setVisible(False)  # Hide loader
+            # total_size: list = []
+            # table_data_list: list = []
+            # for video_url in get_video_urls_from_playlist(link):
+            #     status, video_dict = get_video_info(video_url)
+            #     if status:
+            #         self.video_list.append(video_dict)
+            #         vid_stream = video_dict.get("video_stream")
+            #         audio_stream = video_dict.get("audio_stream")
+            #
+            #         tuple_data = (
+            #             video_dict.get("title"),
+            #             video_dict.get("author"),
+            #             vid_stream.resolution,
+            #             video_dict.get("duration_sec"),
+            #         )
+            #         table_data_list.append(tuple_data)
+            #
+            #         total_size.append(vid_stream.filesize_mb + audio_stream.filesize_mb)
+            #
+            # self.label4.setVisible(True)
+            # self.label4.setText(f"Total Size: {sum(total_size):.2f} MB")
+            # self.display_data_in_table(table_data_list, ["Title", "Channel", "Resolution", "Length"])
+            # self.loaderLabel.setVisible(False)  # Hide loader
 
         else:
             # video

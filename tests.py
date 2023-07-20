@@ -1,3 +1,6 @@
+import pytest
+from pytube import exceptions
+
 import youtube_func
 
 url = "https://www.youtube.com/playlist?list=PLCC34OHNcOtpmCA8s_dpPMvQLyHbvxocY"
@@ -6,11 +9,16 @@ invalid_url = "https://www.python.org/"
 
 
 class TestGetVideoUrlsFromPlaylist:
-    def test_get_items_from_playlist(self):
-        assert youtube_func.get_video_urls_from_playlist("") is None
+    def test_no_url(self):
+        with pytest.raises(KeyError):
+            youtube_func.get_video_urls_from_playlist("")
 
     def test_get_items(self):
         assert youtube_func.get_video_urls_from_playlist(url) is not None
+
+    def test_invalid_url(self):
+        with pytest.raises(KeyError):
+            youtube_func.get_video_urls_from_playlist(invalid_url)
 
 
 class TestGetPlaylistInfo:
@@ -18,24 +26,29 @@ class TestGetPlaylistInfo:
         assert len(youtube_func.get_playlist_info(url).keys()) == 3
 
     def test_empty_playlist_info(self):
-        assert youtube_func.get_playlist_info("") == {}
+        with pytest.raises(KeyError):
+            youtube_func.get_playlist_info("")
 
     def test_gibberish_string(self):
-        assert youtube_func.get_playlist_info("aoeijfoasdje") == {}
+        with pytest.raises(KeyError):
+            youtube_func.get_playlist_info("aosdjfoasejf")
 
     def test_invalid_link(self):
-        assert youtube_func.get_playlist_info(invalid_url) == {}
+        with pytest.raises(KeyError):
+            youtube_func.get_playlist_info(invalid_url)
 
 
 class TestGetVideoInfo:
     def test_is_tuple(self):
-        assert isinstance(youtube_func.get_video_info(vid_url), tuple) is True
+        assert isinstance(youtube_func.get_video_info(vid_url), dict) is True
 
     def test_empty_video_info(self):
-        assert youtube_func.get_video_info("") == (0, {})
+        with pytest.raises(TypeError):
+            youtube_func.get_video_info("")
 
     def test_valid_video_info(self):
-        assert youtube_func.get_video_info(vid_url)[0] == 1
+        assert bool(youtube_func.get_video_info(vid_url)) is True
 
     def test_invalid_video_url(self):
-        assert youtube_func.get_video_info(invalid_url)[0] == 0
+        with pytest.raises(TypeError):
+            youtube_func.get_video_info(invalid_url)

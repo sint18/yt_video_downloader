@@ -5,7 +5,7 @@ import os
 
 def get_playlist_info(playlist_link: str) -> dict:
     if not playlist_link:
-        return {}
+        raise KeyError("URL cannot be empty")
 
     try:
         playlist = Playlist(playlist_link)
@@ -15,11 +15,8 @@ def get_playlist_info(playlist_link: str) -> dict:
             "playlist_id": playlist.playlist_id,
             "views": playlist.views
         }
-    except exceptions.PytubeError as err:
-        print(err)
-        return {}
     except KeyError:
-        return {}
+        raise KeyError("Invalid Link")
 
     return info_dict
 
@@ -27,22 +24,17 @@ def get_playlist_info(playlist_link: str) -> dict:
 def get_video_urls_from_playlist(playlist_link: str):
     # Return empty list if link is empty
     if not playlist_link:
-        return None
-
-    try:
-        # Create playlist object
+        raise KeyError("No url")
+    elif "youtube" in playlist_link or "youtu.be" in playlist_link:
         playlist = Playlist(playlist_link)
-    except exceptions.PytubeError as err:
-        print(err)
-        return None
-    else:
         return playlist.url_generator()
-
+    else:
+        raise KeyError("Invalid Link (Only YouTube is supported)")
 
 # TODO: Provide resolution options
-def get_video_info(video_link: str) -> tuple:
+def get_video_info(video_link: str) -> dict:
     if not video_link:
-        return 0, {}
+        raise exceptions.RegexMatchError
 
     try:
         yt = YouTube(video_link)
@@ -63,16 +55,16 @@ def get_video_info(video_link: str) -> tuple:
         }
 
     except exceptions.VideoPrivate:
-        return 0, {"error": f"Video with link: {video_link} is private", "err_title": "Private Video"}
+        raise exceptions.VideoPrivate(f"Video with link: {video_link} is private")
     except exceptions.AgeRestrictedError:
-        return 0, {"error": f"Age restricted for video: {video_link}", "err_title": "Age Restricted"}
+        raise exceptions.AgeRestrictedError(f"Age restricted for video: {video_link}")
     except exceptions.VideoUnavailable:
-        return 0, {"error": f"Video unavailable: {video_link}", "err_title": "Video Unavailable"}
+        raise exceptions.VideoUnavailable(f"Video unavailable: {video_link}")
     except exceptions.RegexMatchError:
-        return 0, {"error": f"URL is invalid or not supported", "err_title": "Invalid URL"}
+        raise exceptions.RegexMatchError(f"URL is invalid or not supported")
     else:
 
-        return 1, result_dict
+        return result_dict
 
 
 def download(stream: Stream):

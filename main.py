@@ -4,6 +4,7 @@ from os import path
 import pathlib
 import ffmpeg
 import tempfile
+import yt_dlp
 from PyQt5 import QtWidgets, QtCore
 from PyQt5.QtGui import QMovie
 from PyQt5.QtWidgets import QApplication
@@ -15,6 +16,7 @@ download_path = path.join(path.expanduser("~"), "Downloads")
 
 class Worker(QObject):
     finished = pyqtSignal()
+    progress = pyqtSignal(int)
     playlist_info_signal = pyqtSignal(dict)
     video_info_signal = pyqtSignal(list)
 
@@ -22,6 +24,7 @@ class Worker(QObject):
         super().__init__()
         self.url = url
         self.videos = []
+        self.playlist_title = ""
 
     def run_playlist(self):
         playlist_info_dict: dict = get_playlist_info(self.url)
@@ -40,19 +43,37 @@ class Worker(QObject):
         self.finished.emit()
 
     def download_videos(self):
+        # def progress_hook(info):
+        #     if info["status"] == "downloading":
+        #         print(info["filename"])
+        #         print(info["total_bytes"])
+        #         print(info["eta"])
         temp_dir = tempfile.gettempdir()
-        for item in self.videos:
-            audio_file = item.get("audio_stream").download(output_path=temp_dir, filename_prefix="audio_")
-            print(f"Audio file Downloaded :{audio_file}")
-            video_file = item.get("video_stream").download(output_path=temp_dir)
-            print(f"Video file Downloaded :{video_file}")
+        __download_path = pathlib.Path(download_path)
+        if len(self.videos) > 1 and self.playlist_title:
+            __download_path = pathlib.Path(download_path) / self.playlist_title
+            os.mkdir(__download_path)
 
-            filename = pathlib.Path(download_path) / item.get("video_stream").default_filename
-            audio_stream = ffmpeg.input(audio_file)
-            video_stream = ffmpeg.input(video_file)
-            print(f"Location :{filename}")
-            ffmpeg.output(audio_stream, video_stream, str(filename)).run()
-            print(f"Downloaded :{filename}")
+        ydl_options = {
+            "outtmpl": str(__download_path) + "/%(title)s.%(ext)s",
+            # "progress_hooks": [progress_hook]
+        }
+        for index, item in enumerate(self.videos):
+            with yt_dlp.YoutubeDL(ydl_options) as ytdlp:
+                ytdlp.download(item.get("url"))
+            # audio_file = item.get("audio_stream").download(output_path=temp_dir, filename_prefix="audio_")
+            # print(f"Audio file Downloaded :{audio_file}")
+            # video_file = item.get("video_stream").download(output_path=temp_dir)
+            # print(f"Video file Downloaded :{video_file}")
+            #
+            # filename = __download_path / item.get("video_stream").default_filename
+            # audio_stream = ffmpeg.input(audio_file)
+            # video_stream = ffmpeg.input(video_file)
+            # print(f"Location :{filename}")
+            # ffmpeg.output(audio_stream, video_stream, str(filename)).run()
+            # print(f"Downloaded :{filename}")
+            if len(self.videos) > 1:
+                self.progress.emit(index + 1)
 
         self.finished.emit()
 
@@ -101,8 +122,9 @@ class MainWindow(QtWidgets.QMainWindow):
         # Loader
         self.movie = QMovie("assets/loader.gif")
 
-        # Empty List
+        # Empty variables
         self.video_list: list = []
+        self.playlist_title: str = ""
 
     def start_loading_animation(self):
         size: int = 70  # Size of loader (Change this to alter the loader size)
@@ -116,7 +138,7 @@ class MainWindow(QtWidgets.QMainWindow):
         if self.downloadStatusLabel.isVisible():
             self.downloadLocationLabel.setVisible(True)
             self.downloadStatusLabel.setText("Done!")
-            self.downloadLocationLabel.setText(f"Saved :{download_path}")
+            self.downloadLocationLabel.setText(f"Saved to {download_path}")
         self.movie.stop()
         self.loaderLabel.clear()
 
@@ -177,11 +199,14 @@ class MainWindow(QtWidgets.QMainWindow):
         self.thread = QThread()
         self.worker = Worker()
         self.worker.videos = self.video_list
+        self.worker.playlist_title = self.playlist_title
         self.worker.moveToThread(self.thread)
 
         # Started
         self.thread.started.connect(self.start_loading_animation)  # Show loading animation
         self.thread.started.connect(self.worker.download_videos)
+
+        self.worker.progress.connect(self.update_progress)  # Show progress
 
         # Finished
         self.worker.finished.connect(self.stop_loading_animation)  # Hide loading animation when finished
@@ -196,19 +221,18 @@ class MainWindow(QtWidgets.QMainWindow):
         total_size: list = []
         table_data_list: list = []
         self.video_list.extend(videos)
+        self.progressBar.setMaximum(len(videos))
         for video_dict in videos:
-            vid_stream = video_dict.get("video_stream")
-            audio_stream = video_dict.get("audio_stream")
 
             tuple_data = (
                 video_dict.get("title"),
                 video_dict.get("author"),
-                vid_stream.resolution,
+                video_dict.get("resolution"),
                 video_dict.get("duration_sec"),
             )
             table_data_list.append(tuple_data)
 
-            total_size.append(vid_stream.filesize_mb + audio_stream.filesize_mb)
+            total_size.append(video_dict.get("filesize"))
 
         self.label4.setVisible(True)
         self.label4.setText(f"Total Size: {sum(total_size):.2f} MB")
@@ -218,6 +242,7 @@ class MainWindow(QtWidgets.QMainWindow):
         if playlist_info:
             self.label1.setVisible(True)
             self.label1.setText(f"Playlist Title: {playlist_info.get('playlist_title')}")
+            self.playlist_title = playlist_info.get('playlist_title')
 
             self.label2.setVisible(True)
             self.label2.setText(f"Views: {playlist_info.get('views'):,}")
@@ -262,10 +287,11 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self.downloadStatusLabel.setVisible(True)
         self.downloadStatusLabel.setText("Downloading...")
+        self.progressBar.setVisible(True)
         self.run_download_videos()
 
-    def update_progress(self):
-        self.progressBar.setVisible(True)
+    def update_progress(self, index: int):
+        self.progressBar.setValue(index)
 
     def cancel_download(self):
         pass
@@ -280,6 +306,8 @@ class MainWindow(QtWidgets.QMainWindow):
         self.label4.clear()
         self.downloadLocationLabel.clear()
         self.downloadStatusLabel.clear()
+        self.progressBar.reset()
+        self.progressBar.setVisible(False)
         self.tableWidget.setRowCount(0)
 
 

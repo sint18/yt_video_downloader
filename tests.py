@@ -52,3 +52,17 @@ class TestGetVideoInfo:
     def test_invalid_video_url(self):
         with pytest.raises(TypeError):
             youtube_func.get_video_info(invalid_url)
+
+
+class TestConversion:
+    def test_convert_true(self):
+        assert youtube_func.convert_min(3600) == "1:00:00"
+
+    def test_convert_true1(self):
+        assert youtube_func.convert_min(12345) == "3:25:45"
+
+    def test_convert_type(self):
+        assert isinstance(youtube_func.convert_min(12345), str)
+
+    def test_convert_false(self):
+        assert youtube_func.convert_min(0) == "0:00:00"

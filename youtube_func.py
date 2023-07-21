@@ -1,6 +1,11 @@
 from pytube import Playlist, YouTube, Stream
 from pytube import exceptions
+import datetime
 import os
+
+
+def convert_min(seconds: int) -> str:
+    return str(datetime.timedelta(seconds=seconds))
 
 
 def get_playlist_info(playlist_link: str) -> dict:
@@ -31,6 +36,7 @@ def get_video_urls_from_playlist(playlist_link: str):
     else:
         raise KeyError("Invalid Link (Only YouTube is supported)")
 
+
 # TODO: Provide resolution options
 def get_video_info(video_link: str) -> dict:
     if not video_link:
@@ -49,9 +55,10 @@ def get_video_info(video_link: str) -> dict:
         result_dict = {
             "title": yt.title,  # Title of Video
             "author": yt.author,  # Creator of video
-            "duration_sec": yt.length,  # Length of video in seconds
-            "video_stream": video,
-            "audio_stream": audio
+            "duration_sec": convert_min(yt.length),  # Length of video in seconds
+            "filesize": video.filesize_mb + audio.filesize_mb,
+            "resolution": video.resolution,
+            "url": video_link
         }
 
     except exceptions.VideoPrivate:
@@ -70,4 +77,3 @@ def get_video_info(video_link: str) -> dict:
 def download(stream: Stream):
     pass
 # TODO: post-process streams with FFmpeg
-

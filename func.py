@@ -2,10 +2,20 @@ from pytube import Playlist, YouTube, Stream
 from pytube import exceptions
 import datetime
 import os
+import urllib
 
 
 def convert_min(seconds: int) -> str:
     return str(datetime.timedelta(seconds=seconds))
+
+
+def is_valid_url(url: str):
+    res = urllib.parse.urlparse(url)
+    if res.scheme and res.netloc:
+        if res.path and res.query:
+            return res
+
+    return None
 
 
 def get_playlist_info(playlist_link: str) -> dict:
@@ -45,7 +55,6 @@ def get_video_info(video_link: str) -> dict:
     try:
         yt = YouTube(video_link)
 
-        # TODO: Get all video and audio streams and filter later
         # Get the best quality video
         video: Stream = yt.streams.filter(adaptive=True, type="video").asc().first()
 
@@ -73,7 +82,3 @@ def get_video_info(video_link: str) -> dict:
 
         return result_dict
 
-
-def download(stream: Stream):
-    pass
-# TODO: post-process streams with FFmpeg

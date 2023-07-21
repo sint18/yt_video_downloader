@@ -1,5 +1,5 @@
 import os
-from youtube_func import get_video_urls_from_playlist, get_playlist_info, get_video_info
+from func import get_video_urls_from_playlist, get_playlist_info, get_video_info, is_valid_url
 from os import path
 import pathlib
 import ffmpeg
@@ -101,6 +101,7 @@ class MainWindow(QtWidgets.QMainWindow):
         super().__init__(*args, **kwargs)
         self.worker = None
         self.thread = None
+        self.download_finished = False
         loadUi("ui/mainScreen.ui", self)
 
         # Hide stuff
@@ -116,7 +117,7 @@ class MainWindow(QtWidgets.QMainWindow):
         # Buttons and Signals
         self.processButton.clicked.connect(self.process_link)
         self.downloadButton.clicked.connect(self.download)
-        self.stopDownloadButton.clicked.connect(self.stop_loading_animation)
+        self.stopDownloadButton.clicked.connect(self.cancel_download)
         self.resetButton.clicked.connect(self.reset_button)
 
         # Loader
@@ -135,10 +136,12 @@ class MainWindow(QtWidgets.QMainWindow):
         self.movie.start()
 
     def stop_loading_animation(self):
-        if self.downloadStatusLabel.isVisible():
+        if self.downloadStatusLabel.isVisible() and self.download_finished:
             self.downloadLocationLabel.setVisible(True)
             self.downloadStatusLabel.setText("Done!")
             self.downloadLocationLabel.setText(f"Saved to {download_path}")
+        else:
+            self.downloadStatusLabel.setText("Download Stopped!, Click 'Reset'")
         self.movie.stop()
         self.loaderLabel.clear()
 
@@ -154,6 +157,9 @@ class MainWindow(QtWidgets.QMainWindow):
                     self.tableWidget.setItem(row, col, widget_item)
                     self.tableWidget.horizontalHeader() \
                         .setSectionResizeMode(col, QtWidgets.QHeaderView.ResizeMode.ResizeToContents)
+
+    def check_download(self):
+        self.download_finished = True
 
     def run_fetch_playlist_task(self, url: str):
         self.thread = QThread()
@@ -185,6 +191,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.thread.started.connect(self.worker.run_video)
 
         # Finished
+        self.worker.finished.connect(self.check_download)
         self.worker.finished.connect(self.stop_loading_animation)  # Hide loading animation when finished
         self.worker.finished.connect(self.thread.quit)
         self.worker.finished.connect(self.worker.deleteLater)
@@ -210,7 +217,6 @@ class MainWindow(QtWidgets.QMainWindow):
 
         # Finished
         self.worker.finished.connect(self.stop_loading_animation)  # Hide loading animation when finished
-        # TODO: Add progress bar
         self.worker.finished.connect(self.thread.quit)
         self.worker.finished.connect(self.worker.deleteLater)
         self.thread.finished.connect(self.thread.deleteLater)
@@ -269,11 +275,21 @@ class MainWindow(QtWidgets.QMainWindow):
                 QtWidgets.QMessageBox.Icon.Critical
             )
             return None
-
-        if "playlist" in link:
+        url_check_result = is_valid_url(link)
+        if url_check_result is None:
+            showMsgBox(
+                "Invalid URL",
+                f"The give URL '{link}' is invalid or not supported",
+                "Try Again!",
+                QtWidgets.QMessageBox.Icon.Critical
+            )
+            return None
+        if url_check_result.path == "/playlist":  # For playlists
             self.run_fetch_playlist_task(link)
-        else:
+        elif url_check_result.path == "/watch":  # For videos
             self.run_fetch_video_only(link)
+        else:
+            pass
 
     def download(self):
         if not self.video_list:
@@ -287,15 +303,19 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self.downloadStatusLabel.setVisible(True)
         self.downloadStatusLabel.setText("Downloading...")
-        self.progressBar.setVisible(True)
+        self.stopDownloadButton.setVisible(True)
+        if len(self.video_list) > 1:
+            self.progressBar.setVisible(True)
         self.run_download_videos()
 
     def update_progress(self, index: int):
         self.progressBar.setValue(index)
 
     def cancel_download(self):
-        pass
-        # self.stop_loading_animation()
+        self.thread.quit()
+        self.worker.deleteLater()
+        self.thread.deleteLater()
+        self.stop_loading_animation()
 
     def reset_button(self):
         self.video_list.clear()
@@ -309,6 +329,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.progressBar.reset()
         self.progressBar.setVisible(False)
         self.tableWidget.setRowCount(0)
+        self.stopDownloadButton.setVisible(False)
 
 
 def create_window():

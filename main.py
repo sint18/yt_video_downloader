@@ -16,7 +16,7 @@ download_path = path.join(path.expanduser("~"), "Downloads")
 
 class Worker(QObject):
     finished = pyqtSignal()  # Finished signal
-    progress = pyqtSignal(int)  # Download Progress signal
+    progress = pyqtSignal(int, tuple)  # Download Progress signal
     playlist_info_signal = pyqtSignal(dict)  # Playlist information signal
     video_info_signal = pyqtSignal(list)  # Video information signal
 
@@ -52,12 +52,17 @@ class Worker(QObject):
         """
         Downloads videos and emits signals
         """
-        # def progress_hook(info):
-        #     if info["status"] == "downloading":
-        #         print(info["filename"])
-        #         print(info["total_bytes"])
-        #         print(info["eta"])
-        temp_dir = tempfile.gettempdir()
+        index: int = 1
+
+        def progress_hook(info):
+            if info["status"] == "downloading":
+                # print(info["filename"])
+                # print(info["total_bytes"])
+                # print(info["eta"])
+                self.progress.emit(index, (info.get("downloaded_bytes"), info.get('total_bytes')))
+            elif info["status"] == "finished":
+                self.finished.emit()
+
         __download_path = pathlib.Path(download_path)
         if len(self.videos) > 1 and self.playlist_title:
             __download_path = pathlib.Path(download_path) / self.playlist_title
@@ -65,15 +70,15 @@ class Worker(QObject):
 
         ydl_options = {
             "outtmpl": str(__download_path) + "/%(title)s.%(ext)s",
-            # "progress_hooks": [progress_hook]
+            "progress_hooks": [progress_hook]
         }
-        for index, item in enumerate(self.videos):
+        for item in self.videos:
             with yt_dlp.YoutubeDL(ydl_options) as ytdlp:
                 ytdlp.download(item.get("url"))
             if len(self.videos) > 1:
-                self.progress.emit(index + 1)
+                index = index + 1
 
-        self.finished.emit()
+        # self.finished.emit()
 
 
 def showMsgBox(text: str, informative_text: str, window_title: str, icon):
@@ -253,7 +258,6 @@ class MainWindow(QtWidgets.QMainWindow):
         self.video_list.extend(videos)
         self.progressBar.setMaximum(len(videos))
         for video_dict in videos:
-
             tuple_data = (
                 video_dict.get("title"),
                 video_dict.get("author"),
@@ -342,16 +346,19 @@ class MainWindow(QtWidgets.QMainWindow):
         self.downloadStatusLabel.setVisible(True)
         self.downloadStatusLabel.setText("Downloading...")
         self.stopDownloadButton.setVisible(True)
-        if len(self.video_list) > 1:
-            self.progressBar.setVisible(True)
+        self.progressBar.setVisible(True)
         self.run_download_videos()
 
-    def update_progress(self, index: int):
+    def update_progress(self, index: int, bytes: tuple):
         """
         Update progress hook for progress bar
+        :param bytes: (downloaded_bytes, total_bytes)
         :param index: value
         """
-        self.progressBar.setValue(index)
+        self.downloadStatusLabel.setText(f"Downloading... {index}/{len(self.video_list)}")
+        if bytes:
+            self.progressBar.setMaximum(bytes[1])  # Total Bytes
+            self.progressBar.setValue(bytes[0])  # Downloaded Bytes
 
     def cancel_download(self):
         """

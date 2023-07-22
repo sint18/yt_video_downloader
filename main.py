@@ -1,3 +1,4 @@
+from config import download_path
 from module.func import is_valid_url
 from module.worker import Worker
 from PyQt5 import QtWidgets, QtCore
@@ -253,7 +254,13 @@ class MainWindow(QtWidgets.QMainWindow):
         elif url_check_result.path == "/watch":  # For videos
             self.run_fetch_video_only(link)
         else:
-            pass
+            showMsgBox(
+                "Invalid URL",
+                f"Check your URL '{link}' and try again!",
+                "Try Again!",
+                QtWidgets.QMessageBox.Icon.Critical
+            )
+            return None
 
     def download(self):
         """

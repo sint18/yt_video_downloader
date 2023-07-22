@@ -54,12 +54,13 @@ class Worker(QObject):
                 # print(info["eta"])
                 self.progress.emit(index, (info.get("downloaded_bytes"), info.get('total_bytes')))
             elif info["status"] == "finished":
-                self.finished.emit()
+                pass
 
         __download_path = pathlib.Path(download_path)
         if len(self.videos) > 1 and self.playlist_title:
             __download_path = pathlib.Path(download_path) / self.playlist_title
-            os.mkdir(__download_path)
+            if not os.path.exists(__download_path):
+                os.mkdir(__download_path)
 
         ydl_options = {
             "outtmpl": str(__download_path) + "/%(title)s.%(ext)s",
@@ -71,4 +72,4 @@ class Worker(QObject):
             if len(self.videos) > 1:
                 index = index + 1
 
-        # self.finished.emit()
+        self.finished.emit()

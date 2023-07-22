@@ -282,16 +282,16 @@ class MainWindow(QtWidgets.QMainWindow):
         self.progressBar.setVisible(True)
         self.run_download_videos()
 
-    def update_progress(self, index: int, bytes: tuple):
+    def update_progress(self, index: int, size: tuple):
         """
         Update progress hook for progress bar
-        :param bytes: (downloaded_bytes, total_bytes)
+        :param size: (downloaded_bytes, total_bytes)
         :param index: value
         """
         self.downloadStatusLabel.setText(f"Downloading... {index}/{len(self.video_list)}")
-        if bytes:
-            self.progressBar.setMaximum(bytes[1])  # Total Bytes
-            self.progressBar.setValue(bytes[0])  # Downloaded Bytes
+        if size:
+            self.progressBar.setMaximum(size[1] if size[1] else 100)  # Total Bytes
+            self.progressBar.setValue(size[0] if size[0] else 0)  # Downloaded Bytes
 
     def cancel_download(self):
         """

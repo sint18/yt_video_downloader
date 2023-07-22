@@ -6,12 +6,24 @@ import urllib
 
 
 def convert_min(seconds: int) -> str:
+    """
+    Converts seconds to beautiful string
+    :param seconds: int
+    :return: str
+    """
     return str(datetime.timedelta(seconds=seconds))
 
 
-def is_valid_url(url: str):
+def is_valid_url(url: str) -> object | None:
+    """
+    Checks if a url is valid or supported.
+    Returns a ParserObject if it's supported
+    :return: None or object
+    """
     res = urllib.parse.urlparse(url)
     if res.scheme and res.netloc:
+        if "youtube" not in res.netloc:
+            return None
         if res.path and res.query:
             return res
 
@@ -19,6 +31,10 @@ def is_valid_url(url: str):
 
 
 def get_playlist_info(playlist_link: str) -> dict:
+    """
+    Extract information of a playlist
+    :return: dict keys - playlist_title, playlist_owner, last_updated
+    """
     if not playlist_link:
         raise KeyError("URL cannot be empty")
 
@@ -27,8 +43,8 @@ def get_playlist_info(playlist_link: str) -> dict:
 
         info_dict = {
             "playlist_title": playlist.title,
-            "playlist_id": playlist.playlist_id,
-            "views": playlist.views
+            "playlist_owner": playlist.owner,
+            "last_updated": playlist.last_updated
         }
     except KeyError:
         raise KeyError("Invalid Link")
@@ -37,6 +53,11 @@ def get_playlist_info(playlist_link: str) -> dict:
 
 
 def get_video_urls_from_playlist(playlist_link: str):
+    """
+    Extract a list of video URLs from a given playlist link
+    :param playlist_link: Link of a playlist
+    :return: Generator
+    """
     # Return empty list if link is empty
     if not playlist_link:
         raise KeyError("No url")
@@ -49,6 +70,11 @@ def get_video_urls_from_playlist(playlist_link: str):
 
 # TODO: Provide resolution options
 def get_video_info(video_link: str) -> dict:
+    """
+    Extract information of a video
+    :param video_link: Link of a video
+    :return: dict keys - title, author, duration, filesize, resolution, url, views
+    """
     if not video_link:
         raise exceptions.RegexMatchError
 
@@ -64,10 +90,11 @@ def get_video_info(video_link: str) -> dict:
         result_dict = {
             "title": yt.title,  # Title of Video
             "author": yt.author,  # Creator of video
-            "duration_sec": convert_min(yt.length),  # Length of video in seconds
+            "duration": convert_min(yt.length),  # Length of video in seconds
             "filesize": video.filesize_mb + audio.filesize_mb,
             "resolution": video.resolution,
-            "url": video_link
+            "url": video_link,
+            "views": yt.views
         }
 
     except exceptions.VideoPrivate:

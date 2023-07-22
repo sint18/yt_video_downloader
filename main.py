@@ -15,10 +15,10 @@ download_path = path.join(path.expanduser("~"), "Downloads")
 
 
 class Worker(QObject):
-    finished = pyqtSignal()
-    progress = pyqtSignal(int)
-    playlist_info_signal = pyqtSignal(dict)
-    video_info_signal = pyqtSignal(list)
+    finished = pyqtSignal()  # Finished signal
+    progress = pyqtSignal(int)  # Download Progress signal
+    playlist_info_signal = pyqtSignal(dict)  # Playlist information signal
+    video_info_signal = pyqtSignal(list)  # Video information signal
 
     def __init__(self, url=""):
         super().__init__()
@@ -27,6 +27,9 @@ class Worker(QObject):
         self.playlist_title = ""
 
     def run_playlist(self):
+        """
+        Runs a get_playlist_info function and emits signals
+        """
         playlist_info_dict: dict = get_playlist_info(self.url)
         self.playlist_info_signal.emit(playlist_info_dict)
 
@@ -39,10 +42,16 @@ class Worker(QObject):
         self.finished.emit()
 
     def run_video(self):
+        """
+        Runs a get_video_info function and emits signals
+        """
         self.video_info_signal.emit([get_video_info(self.url)])
         self.finished.emit()
 
     def download_videos(self):
+        """
+        Downloads videos and emits signals
+        """
         # def progress_hook(info):
         #     if info["status"] == "downloading":
         #         print(info["filename"])
@@ -61,17 +70,6 @@ class Worker(QObject):
         for index, item in enumerate(self.videos):
             with yt_dlp.YoutubeDL(ydl_options) as ytdlp:
                 ytdlp.download(item.get("url"))
-            # audio_file = item.get("audio_stream").download(output_path=temp_dir, filename_prefix="audio_")
-            # print(f"Audio file Downloaded :{audio_file}")
-            # video_file = item.get("video_stream").download(output_path=temp_dir)
-            # print(f"Video file Downloaded :{video_file}")
-            #
-            # filename = __download_path / item.get("video_stream").default_filename
-            # audio_stream = ffmpeg.input(audio_file)
-            # video_stream = ffmpeg.input(video_file)
-            # print(f"Location :{filename}")
-            # ffmpeg.output(audio_stream, video_stream, str(filename)).run()
-            # print(f"Downloaded :{filename}")
             if len(self.videos) > 1:
                 self.progress.emit(index + 1)
 
@@ -145,10 +143,15 @@ class MainWindow(QtWidgets.QMainWindow):
         self.movie.stop()
         self.loaderLabel.clear()
 
-    def display_data_in_table(self, data: list[tuple], columns: list):
+    def display_data_in_table(self, data: list[tuple], column_headers: list):
+        """
+        Displays information in a table widget
+        :param data: Actual data in list[tuple] format
+        :param column_headers: Column headers
+        """
         self.tableWidget.setRowCount(len(data))
-        self.tableWidget.setColumnCount(len(columns))
-        self.tableWidget.setHorizontalHeaderLabels(columns)
+        self.tableWidget.setColumnCount(len(column_headers))
+        self.tableWidget.setHorizontalHeaderLabels(column_headers)
 
         for row, items in enumerate(data):
             if items:
@@ -158,10 +161,19 @@ class MainWindow(QtWidgets.QMainWindow):
                     self.tableWidget.horizontalHeader() \
                         .setSectionResizeMode(col, QtWidgets.QHeaderView.ResizeMode.ResizeToContents)
 
-    def check_download(self):
+    def flag_downloaded(self):
+        """
+        Flags when the download has finished.
+        """
         self.download_finished = True
+        self.video_list.clear()
+        self.stopDownloadButton.setVisible(False)
 
     def run_fetch_playlist_task(self, url: str):
+        """
+        Performs tasks for playlist in a new QThread.
+        :param url: playlist url
+        """
         self.thread = QThread()
         self.worker = Worker(url)
         self.worker.moveToThread(self.thread)
@@ -182,6 +194,10 @@ class MainWindow(QtWidgets.QMainWindow):
         self.thread.start()
 
     def run_fetch_video_only(self, url: str):
+        """
+        Performs task to fetch only videos
+        :param url: Video url
+        """
         self.thread = QThread()
         self.worker = Worker(url)
         self.worker.moveToThread(self.thread)
@@ -191,7 +207,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.thread.started.connect(self.worker.run_video)
 
         # Finished
-        self.worker.finished.connect(self.check_download)
+
         self.worker.finished.connect(self.stop_loading_animation)  # Hide loading animation when finished
         self.worker.finished.connect(self.thread.quit)
         self.worker.finished.connect(self.worker.deleteLater)
@@ -203,6 +219,9 @@ class MainWindow(QtWidgets.QMainWindow):
         self.thread.start()
 
     def run_download_videos(self):
+        """
+        Performs tasks to download videos
+        """
         self.thread = QThread()
         self.worker = Worker()
         self.worker.videos = self.video_list
@@ -216,6 +235,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.worker.progress.connect(self.update_progress)  # Show progress
 
         # Finished
+        self.worker.finished.connect(self.flag_downloaded)
         self.worker.finished.connect(self.stop_loading_animation)  # Hide loading animation when finished
         self.worker.finished.connect(self.thread.quit)
         self.worker.finished.connect(self.worker.deleteLater)
@@ -224,6 +244,10 @@ class MainWindow(QtWidgets.QMainWindow):
         self.thread.start()
 
     def display_video_info(self, videos: list):
+        """
+        Display video information in a table
+        :param videos: a list of videos
+        """
         total_size: list = []
         table_data_list: list = []
         self.video_list.extend(videos)
@@ -233,8 +257,9 @@ class MainWindow(QtWidgets.QMainWindow):
             tuple_data = (
                 video_dict.get("title"),
                 video_dict.get("author"),
-                video_dict.get("resolution"),
-                video_dict.get("duration_sec"),
+                f"{video_dict.get('views'):,}",
+                video_dict.get("duration"),
+                video_dict.get("resolution")
             )
             table_data_list.append(tuple_data)
 
@@ -242,19 +267,24 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self.label4.setVisible(True)
         self.label4.setText(f"Total Size: {sum(total_size):.2f} MB")
-        self.display_data_in_table(table_data_list, ["Title", "Channel", "Resolution", "Length"])
+        self.display_data_in_table(table_data_list, ["Title", "Channel", "Views", "Length", "Resolution"])
 
     def display_playlist_info(self, playlist_info: dict):
+        """
+        Display a playlist information
+        :param playlist_info: A dict of playlist info
+        :return:
+        """
         if playlist_info:
             self.label1.setVisible(True)
             self.label1.setText(f"Playlist Title: {playlist_info.get('playlist_title')}")
             self.playlist_title = playlist_info.get('playlist_title')
 
             self.label2.setVisible(True)
-            self.label2.setText(f"Views: {playlist_info.get('views'):,}")
+            self.label2.setText(f"Playlist Owner: {playlist_info.get('playlist_owner')}")
 
             self.label3.setVisible(True)
-            self.label3.setText(f"Playlist ID: {playlist_info.get('playlist_id')}")
+            self.label3.setText(f"Last Updated: {playlist_info.get('last_updated')}")
         else:
             showMsgBox(
                 "Invalid URL",
@@ -265,6 +295,10 @@ class MainWindow(QtWidgets.QMainWindow):
             return None
 
     def process_link(self):
+        """
+        For Get button
+        :return: None
+        """
         link: str = self.linkLineEdit.text().strip()
 
         if not link:
@@ -292,6 +326,10 @@ class MainWindow(QtWidgets.QMainWindow):
             pass
 
     def download(self):
+        """
+        For Download button
+        :return: None
+        """
         if not self.video_list:
             showMsgBox(
                 "No Video",
@@ -309,15 +347,25 @@ class MainWindow(QtWidgets.QMainWindow):
         self.run_download_videos()
 
     def update_progress(self, index: int):
+        """
+        Update progress hook for progress bar
+        :param index: value
+        """
         self.progressBar.setValue(index)
 
     def cancel_download(self):
+        """
+        For Stop download button
+        """
         self.thread.quit()
         self.worker.deleteLater()
         self.thread.deleteLater()
         self.stop_loading_animation()
 
     def reset_button(self):
+        """
+        For reset button
+        """
         self.video_list.clear()
         self.linkLineEdit.clear()
         self.label1.clear()

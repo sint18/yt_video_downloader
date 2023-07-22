@@ -1,7 +1,6 @@
 import pytest
-from pytube import exceptions
 
-import func
+from . import func
 
 url = "https://www.youtube.com/playlist?list=PLCC34OHNcOtpmCA8s_dpPMvQLyHbvxocY"
 vid_url = "https://www.youtube.com/watch?v=BaW_jenozKc"

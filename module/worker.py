@@ -3,8 +3,8 @@ import pathlib
 import yt_dlp
 from PyQt5.QtCore import QObject, pyqtSignal
 
-from module import get_playlist_info, get_video_urls_from_playlist, get_video_info
-from main import download_path
+from .func import get_playlist_info, get_video_urls_from_playlist, get_video_info
+from config import download_path
 
 
 class Worker(QObject):

@@ -1,7 +1,6 @@
 from pytube import Playlist, YouTube, Stream
 from pytube import exceptions
 import datetime
-import os
 import urllib
 
 
